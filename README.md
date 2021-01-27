@@ -48,25 +48,10 @@ To configure the Nsano Payments Gateway plugin to work with your WordPress site,
 - __Title__ - this displays the title your customers see when they are choosing checkout options on the checkout page.
 - __Description__ - this displays the description under the checkout title on the checkout page.
 - __Merchant ID__ - provide your Nsano [Merchant ID](https://nsano.com/) on your Nsano dashboard.
-- __Merchant Key__ - provide your Nsano Merchant Key](https://nsano.com/) on your Nsano dashboard.
+- __Merchant Key__ - provide your Nsano [Merchant Key](https://nsano.com/) on your Nsano dashboard.
 - Remember to configure your currency to Ghana Cedis on WooCommerce.
 - Set the callback url for your API credetials to (http://your-site.com/wc-api/wc_nsano_payment_callback/)
 
-## Frequently Asked Questions
-
-How do I get started with receiving payments with Nsano using this plugin?
-
-1.	You need to have a Nsano Account.
-2.	You also need to have WooCommerce plugin installed and activated on your WordPress site.
-3.	After this, install and activate this plugin.
-
-What do I do if I am facing issues with this plugin?
-
-You can send an email to admin@wgghana.com
-
-Where do I get more information on how to use Nsano?
-
-You can send an email to admin@wgghana.com
 
 ## Changelog
 
