@@ -107,7 +107,7 @@ function woo_nsano_init()
 						'placeholder' => 'Merchant ID'
 						),
 
-					'woo_nsano_merchant_ky' => array(
+					'woo_nsano_merchant_key' => array(
 						'title' =>  'Merchant Key',
 						'type' => 'text',
 						'description' =>  'This is your Merchant Key which you can find in your Dashboard.',
@@ -124,21 +124,27 @@ function woo_nsano_init()
 			 */
 			public function check_woo_nsano_payment_webhook()
 			{
-				$decode_webhook = json_decode(@file_get_contents("php://input"), true);
+				if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+					$order = new WC_Order();
 
-				$base_url = 'https://manilla.nsano.com/checkout/payment';
+					header('Location: '.$order->get_checkout_order_received_url());
+					exit;
+				}
+
+				$base_url = 'https://manilla.nsano.com/checkout/verify';
 				$response = wp_remote_post($base_url, array(
 					'method' => 'POST',
-					'timeout' => 45,
+					'timeout' => 1000,
 					'headers' => array(
 						'Content-Type' => 'application/json',
 						'Accept' => 'application/json',
-						'Authorization' => $this->woo_nsano_merchant_id
+						'Authorization' => 'Bearer '.$this->woo_nsano_merchant_id
 						
 					),
 					'body' => json_encode([
-						"order_id" => $decode_webhook['order_id'],
-						"merchant_apiKey" => $this->woo_nsano_merchant_key
+						"order_id" => $_POST['order_id'],
+						"merchant_apiKey" => $this->woo_nsano_merchant_key,
+						"merchant_id" => $this->woo_nsano_merchant_id
 					])
 					)
 				);
@@ -149,11 +155,7 @@ function woo_nsano_init()
 				$response_body = wp_remote_retrieve_body($response);
 
 				$response_body_args = json_decode($response_body, true);
-
-				
-
-				global $woocommerce;
-				$order_ref = $decode_webhook['order_id'];
+				$order_ref = $_POST['order_id'];
 
 				//retrieve order id from the client reference
 				$order_ref_items = explode('-', $order_ref);
@@ -162,7 +164,7 @@ function woo_nsano_init()
 				$order = new WC_Order( $order_id );
 				//process the order with returned data from Nsano callback
 
-				if($response_code = 200 && $response_body['code'] == '00')
+				if($response_code == 200 && $response_body_args['code'] == '00')
 				{
 					
 					$order->add_order_note('Nsano payment completed');				
@@ -173,12 +175,11 @@ function woo_nsano_init()
 
 					//reduce the stock level of items ordered
 					wc_reduce_stock_levels($order_id);
+
 				}else{
 					//add notice to order to inform merchant of 
 					$order->add_order_note('Payment failed at Nsano.');
 				}
-
-				echo '12344';
 				
 			}
 
@@ -208,12 +209,14 @@ function woo_nsano_init()
 
 				//Nsano payment request body args
 				$woo_nsano_request_args = [
-					  "order_id" => date('YmdHis-').$order_id ,
-					  "description" => $this->get_option('woo_nsano_description'),
-					  "amount" =>  $order->get_total() + $order_tax_total,
-					  "currency" => '',
-					  "return_url" => $order->get_checkout_order_received_url(), //return to this page
-					  "cancel_url" => get_home_url(), //checkout url
+					"order_id" => date('YmdHis-').$order_id ,
+					"description" => $this->get_option('woo_nsano_description'),
+					"amount" =>  $order->get_total() + $order_tax_total,
+					'cust_firstname' => 'NA',
+					'cust_lastname' => 'NA',
+					"currency" => get_woocommerce_currency(),
+					"return_url" => home_url('/wc-api/wc_woo_nsano_payment_callback'), //return to this page
+					"cancel_url" => get_home_url(), //checkout url
 
 					// was double charging shipping
 					// "amount" =>  $order->get_total() + $order_tax_total +  $order_shipping_total,
@@ -225,11 +228,11 @@ function woo_nsano_init()
 				$base_url = 'https://manilla.nsano.com/checkout/payment';
 				$response = wp_remote_post($base_url, array(
 					'method' => 'POST',
-					'timeout' => 45,
+					'timeout' => 1000,
 					'headers' => array(
 						'Content-Type' => 'application/json',
 						'Accept' => 'application/json',
-						'Authorization' => $this->woo_nsano_merchant_id
+						'Authorization' =>'Bearer '. $this->woo_nsano_merchant_id
 						
 					),
 					'body' => json_encode($woo_nsano_request_args)
@@ -246,19 +249,17 @@ function woo_nsano_init()
 				switch ($response_code) {
 					case 200:
 							
-						if($response_body['code'] == '00'){
+						if($response_body_args['code'] == '00'){
 
 							$woocommerce->cart->empty_cart();
 
 							return array(
 								'result'   => 'success',
-								'redirect' => $response_body_args['data']['redirectUrl']
+								'redirect' => $response_body_args['data']['links']['checkout_url']
 							);
-
 						}
 
-						wc_add_notice("HTTP STATUS: {$response_body['code']} - Something went wrong, please try again", "error" );
-						
+						wc_add_notice("HTTP STATUS: {$response_body_args['code']} - Something went wrong, please try again", "error" );
 							
 						break;
 
